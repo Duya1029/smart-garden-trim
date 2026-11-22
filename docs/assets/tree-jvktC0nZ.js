@@ -1,0 +1,1 @@
+import{v as t}from"./index-BSrgGtF2.js";function s(e){return t.get("/trees/page",{params:e})}function u(e){return t.get("/trees/my",{params:e})}function a(e){return t.get(`/trees/${e}/archive`)}function c(e){return t.post("/trees",e)}function i(e,r){return t.put(`/trees/${e}`,r)}function o(e){return t.delete(`/trees/${e}`)}export{c as a,u as b,a as c,o as d,s as g,i as u};
