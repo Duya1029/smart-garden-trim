@@ -1,0 +1,1 @@
+import{v as e}from"./index-CGoAhWwQ.js";function n(r){return e.get("/trim-records/page",{params:r})}function c(r){return e.get(`/trim-records/${r}`)}function i(r){return e.get("/trim-records/my",{params:r})}function s(r,t){return e.post(`/trim-records/${r}/evaluate`,t)}function a(r){return e.get("/trim-records/my-trend",{params:r})}export{n as a,i as b,a as c,s as e,c as g};
