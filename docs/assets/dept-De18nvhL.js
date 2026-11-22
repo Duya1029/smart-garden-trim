@@ -1,0 +1,1 @@
+import{v as t}from"./index-RktWTB07.js";function n(){return t.get("/depts/tree")}function s(e){return t.post("/depts",e)}function u(e,r){return t.put(`/depts/${e}`,r)}function d(e){return t.delete(`/depts/${e}`)}export{s as a,d,n as g,u};
