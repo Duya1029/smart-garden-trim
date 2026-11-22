@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.garden.smarttrim.mapper.SysClientMapper">
+
+    <!-- 客户分页总数 -->
+    <select id="countClientPage" resultType="long">
+        SELECT COUNT(1) FROM sys_client
+        <where>
+            <if test="clientName != null and clientName != ''">
+                AND client_name LIKE '%' + #{clientName} + '%'
+            </if>
+        </where>
+    </select>
+
+    <!-- 客户分页列表 -->
+    <select id="selectClientPage" resultType="com.garden.smarttrim.vo.ClientVO">
+        SELECT id, client_name, contact_name, contact_phone, address, user_id, status, create_time
+        FROM sys_client
+        <where>
+            <if test="clientName != null and clientName != ''">
+                AND client_name LIKE '%' + #{clientName} + '%'
+            </if>
+        </where>
+        ORDER BY id DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{pageSize} ROWS ONLY
+    </select>
+
+    <!-- 客户下拉列表（全量，用于账号新增等场景） -->
+    <select id="selectClientOptions" resultType="com.garden.smarttrim.vo.ClientVO">
+        SELECT id, client_name, contact_name, contact_phone
+        FROM sys_client
+        WHERE status = 1
+        ORDER BY id ASC
+    </select>
+
+    <!-- 根据ID查询客户 VO -->
+    <select id="selectClientVoById" resultType="com.garden.smarttrim.vo.ClientVO">
+        SELECT id, client_name, contact_name, contact_phone, address, user_id, status, create_time
+        FROM sys_client
+        WHERE id = #{id}
+    </select>
+
+    <!-- 根据ID查询客户实体 -->
+    <select id="selectById" resultType="com.garden.smarttrim.entity.SysClient">
+        SELECT id, client_name, contact_name, contact_phone, address, user_id, status, create_time, update_time
+        FROM sys_client
+        WHERE id = #{id}
+    </select>
+
+    <!-- 新增客户 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_client (client_name, contact_name, contact_phone, address, user_id, status, create_time)
+        VALUES (#{clientName}, #{contactName}, #{contactPhone}, #{address}, #{userId},
+                #{status}, SYSDATETIME())
+    </insert>
+
+    <!-- 修改客户 -->
+    <update id="update">
+        UPDATE sys_client
+        <set>
+            <if test="clientName != null and clientName != ''">client_name = #{clientName},</if>
+            <if test="contactName != null">contact_name = #{contactName},</if>
+            <if test="contactPhone != null">contact_phone = #{contactPhone},</if>
+            <if test="address != null">address = #{address},</if>
+            <if test="userId != null">user_id = #{userId},</if>
+            <if test="status != null">status = #{status},</if>
+            update_time = SYSDATETIME()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除客户 -->
+    <delete id="deleteById">
+        DELETE FROM sys_client WHERE id = #{id}
+    </delete>
+
+    <!-- 客户总数（统计看板） -->
+    <select id="countAll" resultType="long">
+        SELECT COUNT(1) FROM sys_client
+    </select>
+
+</mapper>

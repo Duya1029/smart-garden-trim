@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.garden.smarttrim.mapper.TrimRecordMapper">
+
+    <!-- 记录 VO 公共查询列 -->
+    <sql id="recordVoColumns">
+        SELECT r.id, r.task_id, tk.task_no, r.tree_id, t.tree_code, t.species, t.location,
+               r.worker_id, w.real_name AS worker_name, r.client_id, c.client_name,
+               r.trim_type, r.actual_trim_time, r.cut_branch_count, r.keep_branch_count,
+               r.work_content, r.ai_suggestion, r.score, r.comment, r.evaluate_time, r.status, r.create_time
+        FROM trim_record r
+        LEFT JOIN trim_task tk ON r.task_id = tk.id
+        LEFT JOIN tree t ON r.tree_id = t.id
+        LEFT JOIN sys_user w ON r.worker_id = w.id
+        LEFT JOIN sys_client c ON r.client_id = c.id
+    </sql>
+
+    <!-- 记录分页总数 -->
+    <select id="countRecordPage" resultType="long">
+        SELECT COUNT(1)
+        FROM trim_record r
+        LEFT JOIN tree t ON r.tree_id = t.id
+        <where>
+            <if test="workerId != null">AND r.worker_id = #{workerId}</if>
+            <if test="clientId != null">AND r.client_id = #{clientId}</if>
+            <if test="treeId != null">AND r.tree_id = #{treeId}</if>
+            <if test="startDate != null and startDate != ''">AND r.actual_trim_time &gt;= CAST(#{startDate} AS DATE)</if>
+            <if test="endDate != null and endDate != ''">AND r.actual_trim_time &lt; DATEADD(DAY, 1, CAST(#{endDate} AS DATE))</if>
+        </where>
+    </select>
+
+    <!-- 记录分页列表 -->
+    <select id="selectRecordPage" resultType="com.garden.smarttrim.vo.TrimRecordVO">
+        <include refid="recordVoColumns"/>
+        <where>
+            <if test="workerId != null">AND r.worker_id = #{workerId}</if>
+            <if test="clientId != null">AND r.client_id = #{clientId}</if>
+            <if test="treeId != null">AND r.tree_id = #{treeId}</if>
+            <if test="startDate != null and startDate != ''">AND r.actual_trim_time &gt;= CAST(#{startDate} AS DATE)</if>
+            <if test="endDate != null and endDate != ''">AND r.actual_trim_time &lt; DATEADD(DAY, 1, CAST(#{endDate} AS DATE))</if>
+        </where>
+        ORDER BY r.actual_trim_time DESC, r.id DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{pageSize} ROWS ONLY
+    </select>
+
+    <!-- 我的记录（按客户过滤） -->
+    <select id="selectMyRecords" resultType="com.garden.smarttrim.vo.TrimRecordVO">
+        <include refid="recordVoColumns"/>
+        <where>
+            r.client_id = #{clientId}
+            <if test="startDate != null and startDate != ''">AND r.actual_trim_time &gt;= CAST(#{startDate} AS DATE)</if>
+            <if test="endDate != null and endDate != ''">AND r.actual_trim_time &lt; DATEADD(DAY, 1, CAST(#{endDate} AS DATE))</if>
+        </where>
+        ORDER BY r.actual_trim_time DESC, r.id DESC
+    </select>
+
+    <!-- 根据ID查询记录实体 -->
+    <select id="selectById" resultType="com.garden.smarttrim.entity.TrimRecord">
+        SELECT id, task_id, tree_id, worker_id, client_id, trim_type, actual_trim_time,
+               cut_branch_count, keep_branch_count, work_content, ai_suggestion,
+               score, comment, evaluate_time, status, create_time, update_time
+        FROM trim_record
+        WHERE id = #{id}
+    </select>
+
+    <!-- 根据ID查询记录 VO -->
+    <select id="selectRecordVoById" resultType="com.garden.smarttrim.vo.TrimRecordVO">
+        <include refid="recordVoColumns"/>
+        WHERE r.id = #{id}
+    </select>
+
+    <!-- 根据任务ID查询记录 VO（任务详情用，取最近一条） -->
+    <select id="selectRecordVoByTaskId" resultType="com.garden.smarttrim.vo.TrimRecordVO">
+        <include refid="recordVoColumns"/>
+        WHERE r.task_id = #{taskId}
+        ORDER BY r.id DESC
+        OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY
+    </select>
+
+    <!-- 新增记录 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO trim_record (task_id, tree_id, worker_id, client_id, trim_type, actual_trim_time,
+                                 cut_branch_count, keep_branch_count, work_content, ai_suggestion,
+                                 status, create_time)
+        VALUES (#{taskId}, #{treeId}, #{workerId}, #{clientId}, #{trimType}, #{actualTrimTime},
+                #{cutBranchCount}, #{keepBranchCount}, #{workContent}, #{aiSuggestion},
+                #{status}, SYSDATETIME())
+    </insert>
+
+    <!-- 客户评价（写分数 / 评语 / 评价时间 / 状态） -->
+    <update id="evaluate">
+        UPDATE trim_record
+        SET score = #{score},
+            comment = #{comment},
+            evaluate_time = #{evaluateTime},
+            status = #{status},
+            update_time = SYSDATETIME()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 树木生长档案：该树全部修剪记录 -->
+    <select id="selectArchiveRecords" resultType="com.garden.smarttrim.vo.TreeArchiveRecordVO">
+        SELECT id AS record_id, actual_trim_time, trim_type, score, comment, work_content
+        FROM trim_record
+        WHERE tree_id = #{treeId}
+        ORDER BY actual_trim_time ASC, id ASC
+    </select>
+
+    <!-- 树木生长档案：评分趋势（date, score） -->
+    <select id="selectTreeScoreTrend" resultType="com.garden.smarttrim.vo.ScorePointVO">
+        SELECT CAST(actual_trim_time AS DATE) AS [date], score
+        FROM trim_record
+        WHERE tree_id = #{treeId} AND score IS NOT NULL
+        ORDER BY actual_trim_time ASC
+    </select>
+
+    <!-- 已修剪树木数（去重，统计看板） -->
+    <select id="countTrimmedTree" resultType="long">
+        SELECT COUNT(DISTINCT tree_id) FROM trim_record
+        <where>
+            <if test="startDate != null and startDate != ''">AND actual_trim_time &gt;= CAST(#{startDate} AS DATE)</if>
+            <if test="endDate != null and endDate != ''">AND actual_trim_time &lt; DATEADD(DAY, 1, CAST(#{endDate} AS DATE))</if>
+        </where>
+    </select>
+
+    <!-- 平均评分（统计看板） -->
+    <select id="avgScore" resultType="java.lang.Double">
+        SELECT AVG(CAST(score AS DECIMAL(5, 2))) FROM trim_record
+        WHERE score IS NOT NULL
+        <if test="startDate != null and startDate != ''">AND actual_trim_time &gt;= CAST(#{startDate} AS DATE)</if>
+        <if test="endDate != null and endDate != ''">AND actual_trim_time &lt; DATEADD(DAY, 1, CAST(#{endDate} AS DATE))</if>
+    </select>
+
+    <!-- 每日修剪记录数（统计看板） -->
+    <select id="selectDailyTrend" resultType="com.garden.smarttrim.vo.TrendStatVO">
+        SELECT CONVERT(varchar(10), actual_trim_time, 23) AS [date], COUNT(1) AS [count]
+        FROM trim_record
+        <where>
+            <if test="startDate != null and startDate != ''">AND actual_trim_time &gt;= CAST(#{startDate} AS DATE)</if>
+            <if test="endDate != null and endDate != ''">AND actual_trim_time &lt; DATEADD(DAY, 1, CAST(#{endDate} AS DATE))</if>
+        </where>
+        GROUP BY CONVERT(varchar(10), actual_trim_time, 23)
+        ORDER BY [date] ASC
+    </select>
+
+    <!-- 养护人员工作量统计 -->
+    <select id="selectWorkerStat" resultType="com.garden.smarttrim.vo.WorkerStatVO">
+        SELECT u.id AS worker_id, u.real_name AS worker_name,
+               COUNT(DISTINCT tk.id) AS task_count,
+               COUNT(DISTINCT r.id) AS trim_count,
+               AVG(CAST(r.score AS DECIMAL(5, 2))) AS avg_score
+        FROM sys_user u
+        LEFT JOIN trim_task tk ON tk.worker_id = u.id
+            <if test="startDate != null and startDate != ''">AND tk.create_time &gt;= CAST(#{startDate} AS DATE)</if>
+            <if test="endDate != null and endDate != ''">AND tk.create_time &lt; DATEADD(DAY, 1, CAST(#{endDate} AS DATE))</if>
+        LEFT JOIN trim_record r ON r.worker_id = u.id
+            <if test="startDate != null and startDate != ''">AND r.actual_trim_time &gt;= CAST(#{startDate} AS DATE)</if>
+            <if test="endDate != null and endDate != ''">AND r.actual_trim_time &lt; DATEADD(DAY, 1, CAST(#{endDate} AS DATE))</if>
+        WHERE u.role = 'WORKER'
+        GROUP BY u.id, u.real_name
+        ORDER BY task_count DESC, trim_count DESC
+    </select>
+
+    <!-- 客户评分趋势（按月分组） -->
+    <select id="selectClientScoreTrend" resultType="com.garden.smarttrim.vo.ScoreTrendVO">
+        SELECT CONVERT(varchar(7), evaluate_time, 120) AS [date],
+               AVG(CAST(score AS DECIMAL(5, 2))) AS score,
+               COUNT(1) AS [count]
+        FROM trim_record
+        WHERE client_id = #{clientId}
+          AND score IS NOT NULL
+          AND evaluate_time IS NOT NULL
+          AND evaluate_time &gt;= DATEADD(MONTH, -#{months}, SYSDATETIME())
+        GROUP BY CONVERT(varchar(7), evaluate_time, 120)
+        ORDER BY [date] ASC
+    </select>
+
+</mapper>

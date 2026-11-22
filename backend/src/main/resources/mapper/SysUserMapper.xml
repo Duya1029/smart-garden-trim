@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.garden.smarttrim.mapper.SysUserMapper">
+
+    <!-- 账号分页 / 列表公共查询语句 -->
+    <sql id="userVoColumns">
+        SELECT u.id, u.username, u.real_name, u.role, u.phone, u.email, u.avatar,
+               u.dept_id, d.dept_name, u.client_id, c.client_name, u.status, u.create_time
+        FROM sys_user u
+        LEFT JOIN sys_dept d ON u.dept_id = d.id
+        LEFT JOIN sys_client c ON u.client_id = c.id
+    </sql>
+
+    <!-- 账号分页总数 -->
+    <select id="countUserPage" resultType="long">
+        SELECT COUNT(1) FROM sys_user u
+        <where>
+            <if test="username != null and username != ''">AND u.username LIKE '%' + #{username} + '%'</if>
+            <if test="realName != null and realName != ''">AND u.real_name LIKE '%' + #{realName} + '%'</if>
+            <if test="role != null and role != ''">AND u.role = #{role}</if>
+            <if test="deptId != null">AND u.dept_id = #{deptId}</if>
+            <if test="status != null">AND u.status = #{status}</if>
+        </where>
+    </select>
+
+    <!-- 账号分页列表 -->
+    <select id="selectUserPage" resultType="com.garden.smarttrim.vo.UserVO">
+        <include refid="userVoColumns"/>
+        <where>
+            <if test="username != null and username != ''">AND u.username LIKE '%' + #{username} + '%'</if>
+            <if test="realName != null and realName != ''">AND u.real_name LIKE '%' + #{realName} + '%'</if>
+            <if test="role != null and role != ''">AND u.role = #{role}</if>
+            <if test="deptId != null">AND u.dept_id = #{deptId}</if>
+            <if test="status != null">AND u.status = #{status}</if>
+        </where>
+        ORDER BY u.id DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{pageSize} ROWS ONLY
+    </select>
+
+    <!-- 根据ID查询账号 VO -->
+    <select id="selectUserVoById" resultType="com.garden.smarttrim.vo.UserVO">
+        <include refid="userVoColumns"/>
+        WHERE u.id = #{id}
+    </select>
+
+    <!-- 根据ID查询账号实体 -->
+    <select id="selectById" resultType="com.garden.smarttrim.entity.SysUser">
+        SELECT id, username, password, real_name, role, phone, email, avatar,
+               dept_id, client_id, status, create_time, update_time
+        FROM sys_user
+        WHERE id = #{id}
+    </select>
+
+    <!-- 根据登录账号查询 -->
+    <select id="selectByUsername" resultType="com.garden.smarttrim.entity.SysUser">
+        SELECT id, username, password, real_name, role, phone, email, avatar,
+               dept_id, client_id, status, create_time, update_time
+        FROM sys_user
+        WHERE username = #{username}
+    </select>
+
+    <!-- 新增账号 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_user (username, password, real_name, role, phone, email, avatar,
+                              dept_id, client_id, status, create_time)
+        VALUES (#{username}, #{password}, #{realName}, #{role}, #{phone}, #{email}, #{avatar},
+                #{deptId}, #{clientId}, #{status}, SYSDATETIME())
+    </insert>
+
+    <!-- 修改账号（password 为空则不修改） -->
+    <update id="update">
+        UPDATE sys_user
+        <set>
+            <if test="username != null and username != ''">username = #{username},</if>
+            <if test="password != null and password != ''">password = #{password},</if>
+            <if test="realName != null and realName != ''">real_name = #{realName},</if>
+            <if test="role != null and role != ''">role = #{role},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="avatar != null">avatar = #{avatar},</if>
+            <if test="deptId != null">dept_id = #{deptId},</if>
+            <if test="clientId != null">client_id = #{clientId},</if>
+            <if test="status != null">status = #{status},</if>
+            update_time = SYSDATETIME()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 修改密码 -->
+    <update id="updatePassword">
+        UPDATE sys_user SET password = #{password}, update_time = SYSDATETIME() WHERE id = #{id}
+    </update>
+
+    <!-- 启用/停用 -->
+    <update id="updateStatus">
+        UPDATE sys_user SET status = #{status}, update_time = SYSDATETIME() WHERE id = #{id}
+    </update>
+
+    <!-- 删除账号 -->
+    <delete id="deleteById">
+        DELETE FROM sys_user WHERE id = #{id}
+    </delete>
+
+    <!-- 按角色统计数量 -->
+    <select id="countByRole" resultType="long">
+        SELECT COUNT(1) FROM sys_user WHERE role = #{role}
+    </select>
+
+</mapper>

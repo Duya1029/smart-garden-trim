@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.garden.smarttrim.mapper.TreeMapper">
+
+    <!-- 树木 VO 公共查询列（联查客户 / 养护队名称，统计修剪次数与最近修剪时间） -->
+    <sql id="treeVoColumns">
+        SELECT t.id, t.tree_code, t.species, t.variety, t.area, t.location,
+               t.longitude, t.latitude, t.tree_age, t.plant_time, t.height, t.crown_diameter,
+               t.health_status, t.client_id, c.client_name, t.dept_id, d.dept_name,
+               t.image_url, t.remark, t.create_time,
+               (SELECT COUNT(1) FROM trim_record r WHERE r.tree_id = t.id) AS trim_count,
+               (SELECT MAX(r.actual_trim_time) FROM trim_record r WHERE r.tree_id = t.id) AS last_trim_time
+        FROM tree t
+        LEFT JOIN sys_client c ON t.client_id = c.id
+        LEFT JOIN sys_dept d ON t.dept_id = d.id
+    </sql>
+
+    <!-- 树木分页总数 -->
+    <select id="countTreePage" resultType="long">
+        SELECT COUNT(1) FROM tree t
+        <where>
+            <if test="treeCode != null and treeCode != ''">AND t.tree_code LIKE '%' + #{treeCode} + '%'</if>
+            <if test="species != null and species != ''">AND t.species LIKE '%' + #{species} + '%'</if>
+            <if test="area != null and area != ''">AND t.area LIKE '%' + #{area} + '%'</if>
+            <if test="clientId != null">AND t.client_id = #{clientId}</if>
+            <if test="healthStatus != null and healthStatus != ''">AND t.health_status = #{healthStatus}</if>
+            <if test="deptId != null">AND t.dept_id = #{deptId}</if>
+        </where>
+    </select>
+
+    <!-- 树木分页列表 -->
+    <select id="selectTreePage" resultType="com.garden.smarttrim.vo.TreeVO">
+        <include refid="treeVoColumns"/>
+        <where>
+            <if test="treeCode != null and treeCode != ''">AND t.tree_code LIKE '%' + #{treeCode} + '%'</if>
+            <if test="species != null and species != ''">AND t.species LIKE '%' + #{species} + '%'</if>
+            <if test="area != null and area != ''">AND t.area LIKE '%' + #{area} + '%'</if>
+            <if test="clientId != null">AND t.client_id = #{clientId}</if>
+            <if test="healthStatus != null and healthStatus != ''">AND t.health_status = #{healthStatus}</if>
+            <if test="deptId != null">AND t.dept_id = #{deptId}</if>
+        </where>
+        ORDER BY t.id DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{pageSize} ROWS ONLY
+    </select>
+
+    <!-- 根据ID查询树木 VO -->
+    <select id="selectTreeVoById" resultType="com.garden.smarttrim.vo.TreeVO">
+        <include refid="treeVoColumns"/>
+        WHERE t.id = #{id}
+    </select>
+
+    <!-- 名下树木（按客户过滤） -->
+    <select id="selectMyTrees" resultType="com.garden.smarttrim.vo.TreeVO">
+        <include refid="treeVoColumns"/>
+        <where>
+            t.client_id = #{clientId}
+            <if test="keyword != null and keyword != ''">
+                AND (t.tree_code LIKE '%' + #{keyword} + '%'
+                     OR t.species LIKE '%' + #{keyword} + '%'
+                     OR t.location LIKE '%' + #{keyword} + '%')
+            </if>
+        </where>
+        ORDER BY t.id DESC
+    </select>
+
+    <!-- 根据ID查询树木实体 -->
+    <select id="selectById" resultType="com.garden.smarttrim.entity.Tree">
+        SELECT id, tree_code, species, variety, area, location, longitude, latitude, tree_age,
+               plant_time, height, crown_diameter, health_status, client_id, dept_id,
+               image_url, remark, create_time, update_time
+        FROM tree
+        WHERE id = #{id}
+    </select>
+
+    <!-- 新增树木 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO tree (tree_code, species, variety, area, location, longitude, latitude, tree_age,
+                          plant_time, height, crown_diameter, health_status, client_id, dept_id,
+                          image_url, remark, create_time)
+        VALUES (#{treeCode}, #{species}, #{variety}, #{area}, #{location}, #{longitude}, #{latitude}, #{treeAge},
+                #{plantTime}, #{height}, #{crownDiameter}, #{healthStatus}, #{clientId}, #{deptId},
+                #{imageUrl}, #{remark}, SYSDATETIME())
+    </insert>
+
+    <!-- 修改树木 -->
+    <update id="update">
+        UPDATE tree
+        <set>
+            <if test="treeCode != null and treeCode != ''">tree_code = #{treeCode},</if>
+            <if test="species != null and species != ''">species = #{species},</if>
+            <if test="variety != null">variety = #{variety},</if>
+            <if test="area != null and area != ''">area = #{area},</if>
+            <if test="location != null and location != ''">location = #{location},</if>
+            <if test="longitude != null">longitude = #{longitude},</if>
+            <if test="latitude != null">latitude = #{latitude},</if>
+            <if test="treeAge != null">tree_age = #{treeAge},</if>
+            <if test="plantTime != null">plant_time = #{plantTime},</if>
+            <if test="height != null">height = #{height},</if>
+            <if test="crownDiameter != null">crown_diameter = #{crownDiameter},</if>
+            <if test="healthStatus != null and healthStatus != ''">health_status = #{healthStatus},</if>
+            <if test="clientId != null">client_id = #{clientId},</if>
+            <if test="deptId != null">dept_id = #{deptId},</if>
+            <if test="imageUrl != null">image_url = #{imageUrl},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            update_time = SYSDATETIME()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除树木 -->
+    <delete id="deleteById">
+        DELETE FROM tree WHERE id = #{id}
+    </delete>
+
+    <!-- 树木编号唯一性校验 -->
+    <select id="countByTreeCode" resultType="long">
+        SELECT COUNT(1) FROM tree
+        WHERE tree_code = #{treeCode}
+        <if test="excludeId != null">AND id &lt;&gt; #{excludeId}</if>
+    </select>
+
+    <!-- 树木总数（统计看板） -->
+    <select id="countTreeTotal" resultType="long">
+        SELECT COUNT(1) FROM tree
+    </select>
+
+    <!-- 区域分布统计 -->
+    <select id="selectAreaStat" resultType="com.garden.smarttrim.vo.AreaStatVO">
+        SELECT t.area AS area,
+               COUNT(1) AS tree_count,
+               COUNT(DISTINCT CASE WHEN r.id IS NOT NULL THEN t.id END) AS trimmed_count
+        FROM tree t
+        LEFT JOIN trim_record r ON r.tree_id = t.id
+        GROUP BY t.area
+        ORDER BY tree_count DESC
+    </select>
+
+    <!-- 树种分布统计 -->
+    <select id="selectSpeciesStat" resultType="com.garden.smarttrim.vo.SpeciesStatVO">
+        SELECT species AS species, COUNT(1) AS [count]
+        FROM tree
+        GROUP BY species
+        ORDER BY [count] DESC
+    </select>
+
+</mapper>

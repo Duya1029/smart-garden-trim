@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.garden.smarttrim.mapper.AiAnalysisMapper">
+
+    <!-- 新增分析结果 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_analysis (task_id, tree_id, species, image_url, marked_image_url,
+                                 cut_branches, keep_branches, suggestion, confidence,
+                                 is_mock, model_version, create_time)
+        VALUES (#{taskId}, #{treeId}, #{species}, #{imageUrl}, #{markedImageUrl},
+                #{cutBranches}, #{keepBranches}, #{suggestion}, #{confidence},
+                #{isMock}, #{modelVersion}, SYSDATETIME())
+    </insert>
+
+    <!-- 查询某任务最近一次分析结果 -->
+    <select id="selectLatestByTaskId" resultType="com.garden.smarttrim.entity.AiAnalysis">
+        SELECT TOP 1 id, task_id, tree_id, species, image_url, marked_image_url,
+               cut_branches, keep_branches, suggestion, confidence,
+               is_mock, model_version, create_time
+        FROM ai_analysis
+        WHERE task_id = #{taskId}
+        ORDER BY id DESC
+    </select>
+
+</mapper>

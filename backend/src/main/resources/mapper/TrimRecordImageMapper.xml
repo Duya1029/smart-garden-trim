@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.garden.smarttrim.mapper.TrimRecordImageMapper">
+
+    <!-- 批量新增图片 -->
+    <insert id="batchInsert">
+        INSERT INTO trim_record_image (record_id, task_id, image_type, image_url, create_time)
+        VALUES
+        <foreach collection="list" item="it" separator=",">
+            (#{it.recordId}, #{it.taskId}, #{it.imageType}, #{it.imageUrl}, SYSDATETIME())
+        </foreach>
+    </insert>
+
+    <!-- 查询记录下的图片列表 -->
+    <select id="selectByRecordId" resultType="com.garden.smarttrim.vo.TrimRecordImageVO">
+        SELECT image_type, image_url
+        FROM trim_record_image
+        WHERE record_id = #{recordId}
+        ORDER BY id ASC
+    </select>
+
+    <!-- 查询记录下的图片地址列表 -->
+    <select id="selectImageUrlsByRecordId" resultType="java.lang.String">
+        SELECT image_url
+        FROM trim_record_image
+        WHERE record_id = #{recordId}
+        ORDER BY id ASC
+    </select>
+
+</mapper>

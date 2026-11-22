@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.garden.smarttrim.mapper.TrimRequestMapper">
+
+    <!-- 需求 VO 公共查询列 -->
+    <sql id="requestVoColumns">
+        SELECT rq.id, rq.request_no, rq.tree_id, t.tree_code, t.species,
+               rq.client_id, c.client_name, rq.appoint_time, rq.location, rq.trim_type,
+               rq.remark, rq.status, rq.audit_remark, rq.create_time
+        FROM trim_request rq
+        LEFT JOIN tree t ON rq.tree_id = t.id
+        LEFT JOIN sys_client c ON rq.client_id = c.id
+    </sql>
+
+    <!-- 需求分页总数 -->
+    <select id="countRequestPage" resultType="long">
+        SELECT COUNT(1)
+        FROM trim_request rq
+        LEFT JOIN tree t ON rq.tree_id = t.id
+        <where>
+            <if test="status != null and status != ''">AND rq.status = #{status}</if>
+            <if test="clientId != null">AND rq.client_id = #{clientId}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (rq.request_no LIKE '%' + #{keyword} + '%'
+                     OR t.tree_code LIKE '%' + #{keyword} + '%'
+                     OR rq.location LIKE '%' + #{keyword} + '%')
+            </if>
+        </where>
+    </select>
+
+    <!-- 需求分页列表 -->
+    <select id="selectRequestPage" resultType="com.garden.smarttrim.vo.TrimRequestVO">
+        <include refid="requestVoColumns"/>
+        <where>
+            <if test="status != null and status != ''">AND rq.status = #{status}</if>
+            <if test="clientId != null">AND rq.client_id = #{clientId}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (rq.request_no LIKE '%' + #{keyword} + '%'
+                     OR t.tree_code LIKE '%' + #{keyword} + '%'
+                     OR rq.location LIKE '%' + #{keyword} + '%')
+            </if>
+        </where>
+        ORDER BY rq.create_time DESC, rq.id DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{pageSize} ROWS ONLY
+    </select>
+
+    <!-- 我的需求（按客户过滤） -->
+    <select id="selectMyRequests" resultType="com.garden.smarttrim.vo.TrimRequestVO">
+        <include refid="requestVoColumns"/>
+        <where>
+            rq.client_id = #{clientId}
+            <if test="status != null and status != ''">AND rq.status = #{status}</if>
+        </where>
+        ORDER BY rq.create_time DESC, rq.id DESC
+    </select>
+
+    <!-- 根据ID查询需求实体 -->
+    <select id="selectById" resultType="com.garden.smarttrim.entity.TrimRequest">
+        SELECT id, request_no, client_id, tree_id, trim_type, appoint_time, location, remark,
+               status, auditor_id, audit_remark, audit_time, create_time, update_time
+        FROM trim_request
+        WHERE id = #{id}
+    </select>
+
+    <!-- 新增需求 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO trim_request (request_no, client_id, tree_id, trim_type, appoint_time,
+                                  location, remark, status, create_time)
+        VALUES (#{requestNo}, #{clientId}, #{treeId}, #{trimType}, #{appointTime},
+                #{location}, #{remark}, #{status}, SYSDATETIME())
+    </insert>
+
+    <!-- 审核（写状态 / 审核人 / 审核意见 / 审核时间） -->
+    <update id="updateAudit">
+        UPDATE trim_request
+        SET status = #{status},
+            auditor_id = #{auditorId},
+            audit_remark = #{auditRemark},
+            audit_time = #{auditTime},
+            update_time = SYSDATETIME()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 更新状态（取消等） -->
+    <update id="updateStatus">
+        UPDATE trim_request SET status = #{status}, update_time = SYSDATETIME() WHERE id = #{id}
+    </update>
+
+    <!-- 删除需求 -->
+    <delete id="deleteById">
+        DELETE FROM trim_request WHERE id = #{id}
+    </delete>
+
+    <!-- 按单号前缀统计当日流水数量 -->
+    <select id="countByNoPrefix" resultType="long">
+        SELECT COUNT(1) FROM trim_request WHERE request_no LIKE #{prefix} + '%'
+    </select>
+
+</mapper>

@@ -1,0 +1,105 @@
+# ==========================================================================
+# 智慧园林·树木智能修剪决策平台 —— 生产环境配置（Tomcat / 数据源 / 上传目录）
+#
+# 使用方式（二选一）：
+#   1) 与主配置合并：启动命令加参数  --spring.profiles.active=prod
+#      本文件需放置在 jar 同级目录的 config/ 下，或 classpath 的 application-prod.yml
+#   2) 直接替换 backend/src/main/resources/application.yml 中对应节点
+#
+# 说明：Spring Boot 默认使用「内置 Tomcat」，无需单独安装 Tomcat；
+#      下方 server.tomcat.* 即为内置 Tomcat 的连接与线程池参数。
+# ==========================================================================
+
+server:
+  # 服务监听端口（Nginx 的 upstream 需与此一致）
+  port: 8080
+  servlet:
+    # 统一接口前缀，Nginx 反向代理的 /api 与之对应
+    context-path: /api
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+    session:
+      timeout: 30m
+  # ---------- 内置 Tomcat 参数 ----------
+  tomcat:
+    uri-encoding: UTF-8
+    # 最大工作线程数（并发请求处理能力）
+    threads:
+      max: 400
+      min-spare: 50
+    # 当线程已满时允许排队的连接数
+    accept-count: 300
+    # 最大连接数（NIO 默认 8192，可按需提升）
+    max-connections: 10000
+    # 连接建立后等待请求的超时时间（毫秒）
+    connection-timeout: 20000
+    # 上报到 Tomcat 的请求体大小上限（图片上传）
+    max-http-form-post-size: 50MB
+    # 通过 Nginx 代理时，用 X-Forwarded-* 还原真实客户端信息
+    remoteip:
+      remote-ip-header: X-Forwarded-For
+      protocol-header: X-Forwarded-Proto
+  compression:
+    enabled: true
+    mime-types: application/json,text/html,text/css,application/javascript
+    min-response-size: 2048
+
+spring:
+  datasource:
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    # 生产环境请改为真实地址、库名与账号（建议启用 encrypt=true 并配置证书）
+    url: jdbc:sqlserver://127.0.0.1:1433;databaseName=smart_garden;encrypt=false;trustServerCertificate=true;loginTimeout=30
+    username: sa
+    password: Garden@123456
+    hikari:
+      pool-name: SmartGardenPool
+      minimum-idle: 10
+      maximum-pool-size: 50
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 50MB
+
+# ---------- 业务自定义配置 ----------
+garden:
+  jwt:
+    # 生产环境务必替换为随机密钥（不少于 32 字节）
+    secret: SmartGardenTrimPlatform2026SecretKeyForJwtHs256Algorithm
+    expire-hours: 24
+    header: Authorization
+    prefix: "Bearer "
+  file:
+    # 上传目录：需与 Nginx 的 /upload/ 静态目录指向同一路径
+    upload-path: /opt/smart-garden/upload
+    access-prefix: /upload
+    allow-ext: jpg,jpeg,png,webp,bmp
+  ai:
+    # mock：使用模拟识别数据；http：转发到真实模型服务
+    provider: mock
+    endpoint: http://127.0.0.1:9000/api/v1/branch/analyze
+    api-key: ""
+    timeout: 10000
+    model-version: mock-v1.0
+
+logging:
+  level:
+    root: info
+    com.garden.smarttrim: info
+  file:
+    # 生产环境输出到文件，按天滚动
+    name: /opt/smart-garden/logs/smart-garden-trim.log
+  logback:
+    rollingpolicy:
+      max-file-size: 50MB
+      max-history: 30
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

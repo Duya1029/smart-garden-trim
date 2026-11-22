@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.garden.smarttrim.mapper.SysDeptMapper">
+
+    <!-- 条件查询部门列表（平铺，按 sort 升序） -->
+    <select id="selectDeptList" resultType="com.garden.smarttrim.vo.DeptVO">
+        SELECT id, parent_id, dept_name, dept_type, leader, phone, sort, status
+        FROM sys_dept
+        <where>
+            <if test="deptName != null and deptName != ''">
+                AND dept_name LIKE '%' + #{deptName} + '%'
+            </if>
+            <if test="deptType != null and deptType != ''">
+                AND dept_type = #{deptType}
+            </if>
+        </where>
+        ORDER BY sort ASC, id ASC
+    </select>
+
+    <!-- 根据ID查询部门 -->
+    <select id="selectById" resultType="com.garden.smarttrim.entity.SysDept">
+        SELECT id, parent_id, dept_name, dept_type, leader, phone, sort, status, create_time, update_time
+        FROM sys_dept
+        WHERE id = #{id}
+    </select>
+
+    <!-- 新增部门 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_dept (parent_id, dept_name, dept_type, leader, phone, sort, status, create_time)
+        VALUES (#{parentId}, #{deptName}, #{deptType}, #{leader}, #{phone},
+                #{sort}, #{status}, SYSDATETIME())
+    </insert>
+
+    <!-- 修改部门 -->
+    <update id="update">
+        UPDATE sys_dept
+        <set>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="deptName != null and deptName != ''">dept_name = #{deptName},</if>
+            <if test="deptType != null and deptType != ''">dept_type = #{deptType},</if>
+            <if test="leader != null">leader = #{leader},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="status != null">status = #{status},</if>
+            update_time = SYSDATETIME()
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 删除部门 -->
+    <delete id="deleteById">
+        DELETE FROM sys_dept WHERE id = #{id}
+    </delete>
+
+    <!-- 统计子部门数量 -->
+    <select id="countByParentId" resultType="long">
+        SELECT COUNT(1) FROM sys_dept WHERE parent_id = #{parentId}
+    </select>
+
+    <!-- 统计关联用户数量 -->
+    <select id="countUserByDeptId" resultType="long">
+        SELECT COUNT(1) FROM sys_user WHERE dept_id = #{deptId}
+    </select>
+
+</mapper>

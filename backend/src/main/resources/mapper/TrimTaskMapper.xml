@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.garden.smarttrim.mapper.TrimTaskMapper">
+
+    <!-- 任务 VO 公共查询列 -->
+    <sql id="taskVoColumns">
+        SELECT tk.id, tk.task_no, tk.request_id, tk.tree_id, t.tree_code, t.species, t.area, t.location,
+               tk.worker_id, w.real_name AS worker_name, tk.client_id, c.client_name,
+               tk.trim_type, tk.plan_time, tk.finish_time, tk.status, tk.priority,
+               tk.description, tk.create_time
+        FROM trim_task tk
+        LEFT JOIN tree t ON tk.tree_id = t.id
+        LEFT JOIN sys_user w ON tk.worker_id = w.id
+        LEFT JOIN sys_client c ON tk.client_id = c.id
+    </sql>
+
+    <!-- 任务分页总数 -->
+    <select id="countTaskPage" resultType="long">
+        SELECT COUNT(1)
+        FROM trim_task tk
+        LEFT JOIN tree t ON tk.tree_id = t.id
+        <where>
+            <if test="status != null and status != ''">AND tk.status = #{status}</if>
+            <if test="workerId != null">AND tk.worker_id = #{workerId}</if>
+            <if test="clientId != null">AND tk.client_id = #{clientId}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (tk.task_no LIKE '%' + #{keyword} + '%'
+                     OR t.tree_code LIKE '%' + #{keyword} + '%'
+                     OR t.location LIKE '%' + #{keyword} + '%')
+            </if>
+        </where>
+    </select>
+
+    <!-- 任务分页列表 -->
+    <select id="selectTaskPage" resultType="com.garden.smarttrim.vo.TrimTaskVO">
+        <include refid="taskVoColumns"/>
+        <where>
+            <if test="status != null and status != ''">AND tk.status = #{status}</if>
+            <if test="workerId != null">AND tk.worker_id = #{workerId}</if>
+            <if test="clientId != null">AND tk.client_id = #{clientId}</if>
+            <if test="keyword != null and keyword != ''">
+                AND (tk.task_no LIKE '%' + #{keyword} + '%'
+                     OR t.tree_code LIKE '%' + #{keyword} + '%'
+                     OR t.location LIKE '%' + #{keyword} + '%')
+            </if>
+        </where>
+        ORDER BY tk.create_time DESC, tk.id DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{pageSize} ROWS ONLY
+    </select>
+
+    <!-- 我的任务（按养护人员过滤） -->
+    <select id="selectMyTasks" resultType="com.garden.smarttrim.vo.TrimTaskVO">
+        <include refid="taskVoColumns"/>
+        <where>
+            tk.worker_id = #{workerId}
+            <if test="status != null and status != ''">AND tk.status = #{status}</if>
+        </where>
+        ORDER BY tk.create_time DESC, tk.id DESC
+    </select>
+
+    <!-- 根据ID查询任务 VO -->
+    <select id="selectTaskVoById" resultType="com.garden.smarttrim.vo.TrimTaskVO">
+        <include refid="taskVoColumns"/>
+        WHERE tk.id = #{id}
+    </select>
+
+    <!-- 根据ID查询任务实体 -->
+    <select id="selectById" resultType="com.garden.smarttrim.entity.TrimTask">
+        SELECT id, task_no, request_id, tree_id, worker_id, client_id, trim_type, plan_time,
+               finish_time, status, priority, description, create_time, update_time
+        FROM trim_task
+        WHERE id = #{id}
+    </select>
+
+    <!-- 新增任务 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO trim_task (task_no, request_id, tree_id, worker_id, client_id, trim_type,
+                               plan_time, status, priority, description, create_time)
+        VALUES (#{taskNo}, #{requestId}, #{treeId}, #{workerId}, #{clientId}, #{trimType},
+                #{planTime}, #{status}, #{priority}, #{description}, SYSDATETIME())
+    </insert>
+
+    <!-- 更新状态 -->
+    <update id="updateStatus">
+        UPDATE trim_task SET status = #{status}, update_time = SYSDATETIME() WHERE id = #{id}
+    </update>
+
+    <!-- 改派养护人员 -->
+    <update id="updateWorker">
+        UPDATE trim_task SET worker_id = #{workerId}, status = 'PENDING', update_time = SYSDATETIME()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 提交记录后置为 SUBMITTED 并写完成时间 -->
+    <update id="updateAfterSubmit">
+        UPDATE trim_task
+        SET status = 'SUBMITTED', finish_time = SYSDATETIME(), update_time = SYSDATETIME()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 结单置为 DONE -->
+    <update id="finishTask">
+        UPDATE trim_task
+        SET status = 'DONE',
+            finish_time = ISNULL(finish_time, SYSDATETIME()),
+            update_time = SYSDATETIME()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 按单号前缀统计当日流水数量 -->
+    <select id="countByNoPrefix" resultType="long">
+        SELECT COUNT(1) FROM trim_task WHERE task_no LIKE #{prefix} + '%'
+    </select>
+
+    <!-- 任务统计（总数，支持日期过滤） -->
+    <select id="countTaskTotal" resultType="long">
+        SELECT COUNT(1) FROM trim_task
+        <where>
+            <if test="startDate != null and startDate != ''">AND create_time &gt;= CAST(#{startDate} AS DATE)</if>
+            <if test="endDate != null and endDate != ''">AND create_time &lt; DATEADD(DAY, 1, CAST(#{endDate} AS DATE))</if>
+        </where>
+    </select>
+
+    <!-- 任务统计（按状态集合，支持日期过滤） -->
+    <select id="countTaskByStatuses" resultType="long">
+        SELECT COUNT(1) FROM trim_task
+        <where>
+            <if test="statuses != null and statuses.size() > 0">
+                AND status IN
+                <foreach collection="statuses" item="st" open="(" separator="," close=")">#{st}</foreach>
+            </if>
+            <if test="startDate != null and startDate != ''">AND create_time &gt;= CAST(#{startDate} AS DATE)</if>
+            <if test="endDate != null and endDate != ''">AND create_time &lt; DATEADD(DAY, 1, CAST(#{endDate} AS DATE))</if>
+        </where>
+    </select>
+
+</mapper>
